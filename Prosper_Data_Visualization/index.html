@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Prosper Visualization</title>
+		<script src="http://d3js.org/d3.v4.min.js"></script>
+		<script src="http://d3js.org/queue.v1.min.js"></script>
+		<style type="text/css">
+			/* No style rules here yet */
+		</style>
+		<script type="text/javascript">
+			function draw_map(){
+				//global variable
+				var svg,path,color;
+				base_map();
+				// interactive_map();
+			}
+			function base_map(){
+				//width and height
+			  var w=1000;
+			  var h=600;
+
+			  //define map projection
+			  var projection=d3.geoAlbersUsa()
+			                   .translate([w/2,h/2])
+			                   .scale([1000]);
+
+			  //define path generator
+			  path=d3.geoPath()
+			         .projection(projection);
+
+			  //define linear color scale
+			  color=d3.scaleLinear()
+			          .domain([1,10000])
+			          .range(["rgb(237,248,233)","rgb(0,109,44)"]);
+
+			  //create svg element
+			  svg=d3.select("body")
+			        .append("svg")
+			        .attr("width",w)
+			        .attr("height",h);
+				load_data();
+			}
+
+			function load_data(){
+				d3.queue()
+				  .defer(d3.json,"us-states.json")
+					.defer(d3.csv, "ProsperData.csv")
+					.await(process_data);
+			}
+
+			function process_data(error,jsondata,csvdata){
+				filtered=filter_csv(csvdata);
+				merged=merge(filtered,jsondata);
+				fill_map(merged);
+				interactive_map(jsondata,csvdata);
+			}
+
+
+			function filter_csv(csvdata,year,category){
+				var filtered;
+				var nested=d3.nest()
+			             .key(function(d){
+			               return d.state;
+			             })
+			             .rollup(function(leaves){
+			               return leaves.length;
+			             })
+			             .entries(csvdata);
+
+				if (year && category) {
+					filtered=nested.filter(function(d){
+						return d.year==year && d.category==category;
+					});
+
+				}else if (year) {
+					filtered=nested.filter(function(d){
+						return d.year==year;
+					});
+
+				}else if (category) {
+					filtered=nested.filter(function(d){
+						return d.category==category;
+					});
+
+				}else {
+					filtered=nested;
+				}
+				return filtered;
+			}
+
+			function merge(filtered,jsondata){
+				for (var i = 0; i < filtered.length; i++) {
+					var filteredstate=filtered[i].key;
+					var filteredvalue=filtered[i].value;
+					for (var j = 0; j < jsondata.features.length; j++) {
+						var jsonstate=jsondata.features[j].properties.name;
+						if (filteredstate==jsonstate) {
+							jsondata.features[j].properties.value=filteredvalue;
+							break;
+						}
+					}
+				}
+				return jsondata;
+			}
+
+			function fill_map(merged){
+				svg.selectAll("path")
+					 .data(merged.features)
+					 .enter()
+					 .append("path")
+					 .attr("d",path)
+					 .style("fill",function(d){
+						 var fill_value=d.properties.value;
+						 if (fill_value) {
+							 return color(fill_value);
+						 }else {
+						 	return "#ccc";
+						 }
+					 });
+			}
+
+			function interactive_map(){
+				//create button
+				var years=[2006,2007,2008,2009,2010,2011,2012,2013,2014];
+				var buttons=d3.select("body")
+											.append("div")
+											.attr("id","years_buttons")
+											.attr("class","buttony")
+											.selectAll("div")
+											.data(years)
+											.enter()
+											.append("div")
+											.text(function(d){
+												return d;
+											});
+
+				 buttons.on("click",function(){
+
+					 var this_year=document.getElementById("years_buttons").value;
+
+					 d3.select(".buttony")
+					   .selectAll('div')
+						 .transition()
+						 .duration(500)
+						 .style("color","black");
+
+
+					 d3.select(this)
+					 	 .transition()
+						 .duration(500)
+						 .style("background", "yellow");
+
+					 filtered=filter_csv(csvdata,this_year);
+					 merged=merge(filtered,jsondata);
+					 fill_map(merged);
+					 debugger;
+				 });
+
+			}
+
+		</script>
+
+	</head>
+	<body>
+		<script>
+			//title
+			//text
+			draw_map();
+			//instruction for interaction
+		</script>
+
+	</body>
+</html>
