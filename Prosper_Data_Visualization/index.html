@@ -4,9 +4,30 @@
 		<meta charset="utf-8">
 		<title>Prosper Visualization</title>
 		<script src="http://d3js.org/d3.v4.min.js"></script>
-		<script src="http://d3js.org/queue.v1.min.js"></script>
+		<!-- <script src="http://d3js.org/queue.v1.min.js"></script> -->
 		<style type="text/css">
-			/* No style rules here yet */
+
+			h2 {
+				position: fixed;
+				left: 300px;
+				color: black;
+			}
+
+			div.buttony {
+        position: fixed;
+        top: 150px;
+        left: 50px;
+      }
+			div.buttony div {
+        background-color: rgb(251, 201, 127);
+        padding: 5px;
+        margin: 7px;
+      }
+			div.tooltip{
+				position: absolute;
+
+			}
+
 		</style>
 		<script type="text/javascript">
 			function draw_map(){
@@ -31,34 +52,44 @@
 
 			  //define linear color scale
 			  color=d3.scaleLinear()
-			          .domain([1,10000])
-			          .range(["rgb(237,248,233)","rgb(0,109,44)"]);
+			          .domain([0,2000])
+			          .range(["lightBlue","blue"]);
 
 			  //create svg element
 			  svg=d3.select("body")
 			        .append("svg")
 			        .attr("width",w)
 			        .attr("height",h);
+
 				load_data();
 			}
 
 			function load_data(){
 				d3.queue()
 				  .defer(d3.json,"us-states.json")
-					.defer(d3.csv, "ProsperData.csv")
+					.defer(d3.csv, "Prosper.csv")
 					.await(process_data);
 			}
 
 			function process_data(error,jsondata,csvdata){
+				//error must be the first argument
 				filtered=filter_csv(csvdata);
 				merged=merge(filtered,jsondata);
 				fill_map(merged);
 				interactive_map(jsondata,csvdata);
 			}
 
-
 			function filter_csv(csvdata,year,category){
-				var filtered;
+				// var filtered;
+				var filteredcsv;
+				if(year){
+					filteredcsv=csvdata.filter(function(d){
+						return d.year==year;
+					})
+				}else {
+					filteredcsv=csvdata;
+				}
+				// console.log(filteredcsv);
 				var nested=d3.nest()
 			             .key(function(d){
 			               return d.state;
@@ -66,27 +97,31 @@
 			             .rollup(function(leaves){
 			               return leaves.length;
 			             })
-			             .entries(csvdata);
+			             .entries(filteredcsv);
 
-				if (year && category) {
-					filtered=nested.filter(function(d){
-						return d.year==year && d.category==category;
-					});
+				// console.log(csvdata);
+				// console.log(nested);
 
-				}else if (year) {
-					filtered=nested.filter(function(d){
-						return d.year==year;
-					});
+				// if (year && category) {
+				// 	filtered=nested.filter(function(d){
+				// 		return d.year==year && d.category==category;
+				// 	});
+				//
+				// }else if (year) {
+				// 	filtered=nested.filter(function(d){
+				// 		return d.year==year;
+				// 	});
+				//
+				// }else if (category) {
+				// 	filtered=nested.filter(function(d){
+				// 		return d.category==category;
+				// 	});
+				//
+				// }else {
+				// 	filtered=nested;
+				// }
+				return nested;
 
-				}else if (category) {
-					filtered=nested.filter(function(d){
-						return d.category==category;
-					});
-
-				}else {
-					filtered=nested;
-				}
-				return filtered;
 			}
 
 			function merge(filtered,jsondata){
@@ -105,27 +140,51 @@
 			}
 
 			function fill_map(merged){
+				var tooltip=d3.select("body")
+											.append("div")
+											.attr("class","tooltip")
+											.attr("opacity",0.0);
+				// console.log(merged);
 				svg.selectAll("path")
-					 .data(merged.features)
-					 .enter()
-					 .append("path")
-					 .attr("d",path)
-					 .style("fill",function(d){
-						 var fill_value=d.properties.value;
-						 if (fill_value) {
-							 return color(fill_value);
-						 }else {
-						 	return "#ccc";
-						 }
-					 });
+				   .remove();
+			   svg.selectAll("path")
+				    .data(merged.features)
+					  .enter()
+					  .append("path")
+					  .attr("d",path)
+					  .style("fill",function(d){
+							 var fill_value=d.properties.value;
+							//  console.log(fill_value);
+							 if (fill_value) {
+								 return color(fill_value);
+							 }else {
+							 	return "#ccc";
+							 }
+						 })
+						 .on("mouseover",function(d){
+							//  path.style("color",black);
+							 tooltip.html(d.properties.name+":"+d.properties.value)
+							 				.style("opacity",1.0)
+											.style("color","black")
+											.style("left",(d3.event.pageX)+"px")
+											.style("top",(d3.event.pageY+20)+"px");
+						 })
+						 .on("mouseout",function(d){
+							 tooltip.style("opacity",0.0);
+						 });
+				//  console.log("finished");
 			}
 
-			function interactive_map(){
+			function interactive_map(jsondata,csvdata){
 				//create button
 				var years=[2006,2007,2008,2009,2010,2011,2012,2013,2014];
+				// var categories=["Not Available","Debt Consolidation","Home Improvement",
+				// "Business","Personal Loan","Student Use","Auto","Other","Baby&Adoption",
+				// "Boat","Cosmetic Procedure","Engagement Ring","Green Loans",
+				// "Household Expenses","Large Purchases","Medical/Dental","Motorcycle",
+				// "RV","Taxes","Vacation","Wedding Loans"];
 				var buttons=d3.select("body")
 											.append("div")
-											.attr("id","years_buttons")
 											.attr("class","buttony")
 											.selectAll("div")
 											.data(years)
@@ -135,26 +194,27 @@
 												return d;
 											});
 
-				 buttons.on("click",function(){
-
-					 var this_year=document.getElementById("years_buttons").value;
+				 buttons.on("click",function(d){
 
 					 d3.select(".buttony")
 					   .selectAll('div')
 						 .transition()
 						 .duration(500)
-						 .style("color","black");
-
+						 .style("color","black")
+						 .style("background", "rgb(251, 201, 127)");
 
 					 d3.select(this)
 					 	 .transition()
 						 .duration(500)
-						 .style("background", "yellow");
+						 .style("background", "lightBlue")
+						 .style("color", "white");
+					//  alert(d);
 
-					 filtered=filter_csv(csvdata,this_year);
+					 filtered=filter_csv(csvdata,d);
+					//  console.log(filtered);
 					 merged=merge(filtered,jsondata);
+					//  console.log(merged);
 					 fill_map(merged);
-					 debugger;
 				 });
 
 			}
@@ -164,7 +224,9 @@
 	</head>
 	<body>
 		<script>
-			//title
+			d3.select("body")
+				.append("h2")
+				.text("How many people loan on Prosper");
 			//text
 			draw_map();
 			//instruction for interaction
