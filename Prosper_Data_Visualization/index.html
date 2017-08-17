@@ -87,7 +87,7 @@
 			function load_data(){
 				d3.queue()
 				  .defer(d3.json,"us-states.json")
-					.defer(d3.csv, "Prosper.csv")
+					.defer(d3.csv, "ProsperData.csv")
 					.await(process_data);
 			}
 
