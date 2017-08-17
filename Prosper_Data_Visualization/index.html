@@ -4,7 +4,6 @@
 		<meta charset="utf-8">
 		<title>Prosper Visualization</title>
 		<script src="http://d3js.org/d3.v4.min.js"></script>
-		<!-- <script src="http://d3js.org/queue.v1.min.js"></script> -->
 		<style type="text/css">
 
 			h2 {
@@ -15,21 +14,41 @@
 
 			div.buttony {
         position: fixed;
-        top: 150px;
-        left: 50px;
+        top: 125px;
+        left:50px;
+
       }
+
 			div.buttony div {
         background-color: rgb(251, 201, 127);
         padding: 5px;
-        margin: 7px;
+        margin: 5px;
       }
+
 			div.tooltip{
 				position: absolute;
+				padding: 12px;
+				background: rgba(250, 250, 250, 0.5);
+			}
+
+			path:hover{
+				stroke: red;
+				stroke-width:2px;
+			}
+			.chart{
+				position: fixed;
+        top: 100px;
+        left:900px;
 
 			}
+			/*.plot{
+				float: left;
+			}*/
+
 
 		</style>
 		<script type="text/javascript">
+
 			function draw_map(){
 				//global variable
 				var svg,path,color;
@@ -43,8 +62,9 @@
 
 			  //define map projection
 			  var projection=d3.geoAlbersUsa()
-			                   .translate([w/2,h/2])
-			                   .scale([1000]);
+												 .scale([800]);
+			                  //  .translate([w/2,h/2])
+
 
 			  //define path generator
 			  path=d3.geoPath()
@@ -74,22 +94,101 @@
 			function process_data(error,jsondata,csvdata){
 				//error must be the first argument
 				filtered=filter_csv(csvdata);
-				merged=merge(filtered,jsondata);
-				fill_map(merged);
+				nested_state=nest_state(filtered);
+				merged=merge(nested_state,jsondata);
+				fill_map(merged,csvdata);
+				plot_barchart(csvdata);
 				interactive_map(jsondata,csvdata);
 			}
+			function plot_barchart(csvdata,state){
+				d3.select("body")
+					 .selectAll(".chart")
+					 .remove();
+				var nested_category;
+				if (state) {
+					var filteredcsv=csvdata.filter(function(d){
+						return d.state==state;
+					})
+					nested_category=d3.nest()
+								            .key(function(d){
+								              return d.category;
+								            })
+								            .rollup(function(leaves){
+								              return leaves.length;
+								            })
+														// .sortValues()
+								            .entries(filteredcsv);
+				}else {
+					nested_category=d3.nest()
+								            .key(function(d){
+								              return d.category;
+								            })
+								            .rollup(function(leaves){
+								              return leaves.length;
+								            })
+														.sortValues(d3.descending)
+								            .entries(csvdata);
+					console.log(nested_category);
+				}
 
-			function filter_csv(csvdata,year,category){
+				var wb=600;
+				var hb=600;
+				var barHeight=20;
+
+				var x=d3.scaleLinear()
+			          .domain([0,d3.max(nested_category,function(d){return d.value;})])
+			          .range([0,wb]);
+
+				var svg=d3.select("body")
+				          .append("svg")
+									.attr("width",wb)
+									.attr("height",hb)
+									.attr("class","chart");
+
+				svg.selectAll("rect")
+					 .data(nested_category)
+					 .enter()
+					 .append("rect")
+					 .attr("y",function(d,i){
+						 return barHeight*i;
+					 })
+					 .attr("width",function(d){
+						 return x(d.value);
+					 })
+					 .attr("height",barHeight-1)
+					 .attr("fill","grey");
+
+				svg.selectAll("text")
+			     .data(nested_category)
+					 .enter()
+					 .append("text")
+					 .text(function(d){
+						 return d.key+":"+d.value;
+					 })
+					 .attr("x",10)
+					 .attr("y",function(d,i){
+						 return barHeight*(i+2/3);
+					 })
+					 .attr("font-size", "12px")
+			     .attr("fill", "black");
+			}
+
+			function filter_csv(csvdata,year){
 				// var filtered;
 				var filteredcsv;
 				if(year){
+					// alert(year);
 					filteredcsv=csvdata.filter(function(d){
 						return d.year==year;
 					})
 				}else {
 					filteredcsv=csvdata;
 				}
-				// console.log(filteredcsv);
+
+				return filteredcsv;
+			}
+
+			function nest_state(filteredcsv){
 				var nested=d3.nest()
 			             .key(function(d){
 			               return d.state;
@@ -98,30 +197,7 @@
 			               return leaves.length;
 			             })
 			             .entries(filteredcsv);
-
-				// console.log(csvdata);
-				// console.log(nested);
-
-				// if (year && category) {
-				// 	filtered=nested.filter(function(d){
-				// 		return d.year==year && d.category==category;
-				// 	});
-				//
-				// }else if (year) {
-				// 	filtered=nested.filter(function(d){
-				// 		return d.year==year;
-				// 	});
-				//
-				// }else if (category) {
-				// 	filtered=nested.filter(function(d){
-				// 		return d.category==category;
-				// 	});
-				//
-				// }else {
-				// 	filtered=nested;
-				// }
 				return nested;
-
 			}
 
 			function merge(filtered,jsondata){
@@ -139,7 +215,8 @@
 				return jsondata;
 			}
 
-			function fill_map(merged){
+			function fill_map(merged,csvdata){
+				// console.log(csvdata);
 				var tooltip=d3.select("body")
 											.append("div")
 											.attr("class","tooltip")
@@ -162,15 +239,25 @@
 							 }
 						 })
 						 .on("mouseover",function(d){
-							//  path.style("color",black);
+
 							 tooltip.html(d.properties.name+":"+d.properties.value)
 							 				.style("opacity",1.0)
 											.style("color","black")
 											.style("left",(d3.event.pageX)+"px")
 											.style("top",(d3.event.pageY+20)+"px");
+								// d3.select("body")
+								//    .selectAll(".chart")
+								// 	 .remove();
+							 plot_barchart(csvdata,d.properties.name);
+
 						 })
 						 .on("mouseout",function(d){
 							 tooltip.style("opacity",0.0);
+							//  d3.select("body")
+							//    .selectAll(".chart")
+							// 	 .remove();
+							 plot_barchart(csvdata);
+
 						 });
 				//  console.log("finished");
 			}
@@ -211,10 +298,12 @@
 					//  alert(d);
 
 					 filtered=filter_csv(csvdata,d);
+					 nested=nest_state(filtered);
 					//  console.log(filtered);
-					 merged=merge(filtered,jsondata);
+					 merged=merge(nested,jsondata);
 					//  console.log(merged);
-					 fill_map(merged);
+					 fill_map(merged,filtered);
+					 plot_barchart(filtered);
 				 });
 
 			}
@@ -226,7 +315,7 @@
 		<script>
 			d3.select("body")
 				.append("h2")
-				.text("How many people loan on Prosper");
+				.text("How many people loan on Prosper and for what");
 			//text
 			draw_map();
 			//instruction for interaction
