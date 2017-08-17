@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Prosper Visualization</title>
+		<script src="http://d3js.org/d3.v4.min.js"></script>
+		<style type="text/css">
+
+			h2 {
+				text-align:center;
+			}
+
+			div.buttony {
+        position: fixed;
+        top: 125px;
+        left:50px;
+
+      }
+
+			div.buttony div {
+        background-color: rgb(251, 201, 127);
+        padding: 5px;
+        margin: 5px;
+      }
+
+			div.tooltip{
+				position: absolute;
+			}
+
+			}
+
+		</style>
+		<script type="text/javascript">
+
+			function draw_map(){
+				//global variable
+				var svg,path,color;
+				base_map();
+				// interactive_map();
+			}
+			function base_map(){
+				//width and height
+			  var w=1000;
+			  var h=600;
+
+			  //define map projection
+			  var projection=d3.geoAlbersUsa()
+												 .scale([900]);
+			                  //  .translate([w/2,h/2])
+
+
+			  //define path generator
+			  path=d3.geoPath()
+			         .projection(projection);
+
+			  //define linear color scale
+			  color=d3.scaleLinear()
+			          .domain([0,2000])
+			          .range(["lightBlue","blue"]);
+
+			  //create svg element
+			  svg=d3.select("body")
+			        .append("svg")
+			        .attr("width",w)
+			        .attr("height",h);
+
+				load_data();
+			}
+
+			function load_data(){
+				d3.queue()
+				  .defer(d3.json,"us-states.json")
+					.defer(d3.csv, "ProsperData.csv")
+					.await(process_data);
+			}
+
+			function process_data(error,jsondata,csvdata){
+				//error must be the first argument
+				filtered=filter_csv(csvdata);
+				nested_state=nest_state(filtered);
+				merged=merge(nested_state,jsondata);
+				fill_map(merged,csvdata);
+				interactive_map(jsondata,csvdata);
+			}
+
+			function filter_csv(csvdata,year){
+				// var filtered;
+				var filteredcsv;
+				if(year){
+					// alert(year);
+					filteredcsv=csvdata.filter(function(d){
+						return d.year==year;
+					})
+				}else {
+					filteredcsv=csvdata;
+				}
+
+				return filteredcsv;
+			}
+
+			function nest_state(filteredcsv){
+				var nested=d3.nest()
+			             .key(function(d){
+			               return d.state;
+			             })
+			             .rollup(function(leaves){
+			               return leaves.length;
+			             })
+			             .entries(filteredcsv);
+				return nested;
+			}
+
+			function merge(filtered,jsondata){
+				for (var i = 0; i < filtered.length; i++) {
+					var filteredstate=filtered[i].key;
+					var filteredvalue=filtered[i].value;
+					for (var j = 0; j < jsondata.features.length; j++) {
+						var jsonstate=jsondata.features[j].properties.name;
+						if (filteredstate==jsonstate) {
+							jsondata.features[j].properties.value=filteredvalue;
+							break;
+						}
+					}
+				}
+				return jsondata;
+			}
+
+			function fill_map(merged,csvdata){
+				// console.log(csvdata);
+				var tooltip=d3.select("body")
+											.append("div")
+											.attr("class","tooltip")
+											.attr("opacity",0.0);
+				// console.log(merged);
+				svg.selectAll("path")
+				   .remove();
+			   svg.selectAll("path")
+				    .data(merged.features)
+					  .enter()
+					  .append("path")
+					  .attr("d",path)
+					  .style("fill",function(d){
+							 var fill_value=d.properties.value;
+							//  console.log(fill_value);
+							 if (fill_value) {
+								 return color(fill_value);
+							 }else {
+							 	return "#ccc";
+							 }
+						 })
+						 .on("mouseover",function(d){
+
+							 tooltip.html(d.properties.name+":"+d.properties.value)
+							 				.style("opacity",1.0)
+											.style("color","black")
+											.style("left",(d3.event.pageX)+"px")
+											.style("top",(d3.event.pageY+20)+"px");
+
+						 })
+						 .on("mouseout",function(d){
+							 tooltip.style("opacity",0.0);
+
+						 });
+				//  console.log("finished");
+			}
+
+			function interactive_map(jsondata,csvdata){
+				//create button
+				var years=[2006,2007,2008,2009,2010,2011,2012,2013,2014];
+				// var categories=["Not Available","Debt Consolidation","Home Improvement",
+				// "Business","Personal Loan","Student Use","Auto","Other","Baby&Adoption",
+				// "Boat","Cosmetic Procedure","Engagement Ring","Green Loans",
+				// "Household Expenses","Large Purchases","Medical/Dental","Motorcycle",
+				// "RV","Taxes","Vacation","Wedding Loans"];
+				var buttons=d3.select("body")
+											.append("div")
+											.attr("class","buttony")
+											.selectAll("div")
+											.data(years)
+											.enter()
+											.append("div")
+											.text(function(d){
+												return d;
+											});
+
+				 buttons.on("click",function(d){
+
+					 d3.select(".buttony")
+					   .selectAll('div')
+						 .transition()
+						 .duration(500)
+						 .style("color","black")
+						 .style("background", "rgb(251, 201, 127)");
+
+					 d3.select(this)
+					 	 .transition()
+						 .duration(500)
+						 .style("background", "lightBlue")
+						 .style("color", "white");
+					//  alert(d);
+
+					 filtered=filter_csv(csvdata,d);
+					 nested=nest_state(filtered);
+					//  console.log(filtered);
+					 merged=merge(nested,jsondata);
+					//  console.log(merged);
+					 fill_map(merged,filtered);
+				 });
+
+			}
+
+		</script>
+
+	</head>
+	<body>
+		<script>
+			d3.select("body")
+				.append("h2")
+				.text("How many people loan on Prosper and for what");
+			//text
+			draw_map();
+			//instruction for interaction
+		</script>
+
+	</body>
+</html>
