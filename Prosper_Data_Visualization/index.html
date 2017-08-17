@@ -7,9 +7,7 @@
 		<style type="text/css">
 
 			h2 {
-				position: fixed;
-				left: 300px;
-				color: black;
+				text-align:center;
 			}
 
 			div.buttony {
@@ -41,10 +39,6 @@
         left:900px;
 
 			}
-			/*.plot{
-				float: left;
-			}*/
-
 
 		</style>
 		<script type="text/javascript">
@@ -62,7 +56,7 @@
 
 			  //define map projection
 			  var projection=d3.geoAlbersUsa()
-												 .scale([800]);
+												 .scale([900]);
 			                  //  .translate([w/2,h/2])
 
 
@@ -126,10 +120,13 @@
 								            .rollup(function(leaves){
 								              return leaves.length;
 								            })
-														.sortValues(d3.descending)
+														// .sortValues(d3.descending)
 								            .entries(csvdata);
-					console.log(nested_category);
+					// console.log(nested_category);
 				}
+				nested_category.sort(function(a,b){
+					return b.value-a.value;
+				});
 
 				var wb=600;
 				var hb=600;
@@ -149,8 +146,9 @@
 					 .data(nested_category)
 					 .enter()
 					 .append("rect")
+					 .attr("x",150)
 					 .attr("y",function(d,i){
-						 return barHeight*i;
+						 return barHeight*i+20;
 					 })
 					 .attr("width",function(d){
 						 return x(d.value);
@@ -163,14 +161,28 @@
 					 .enter()
 					 .append("text")
 					 .text(function(d){
-						 return d.key+":"+d.value;
+						 return d.value;
 					 })
-					 .attr("x",10)
+					 .attr("x",160)
 					 .attr("y",function(d,i){
-						 return barHeight*(i+2/3);
+						 return 20+barHeight*(i+2/3);
 					 })
 					 .attr("font-size", "12px")
 			     .attr("fill", "black");
+				svg.selectAll("textc")
+				   .data(nested_category)
+					 .enter()
+					 .append("text")
+					 .text(function(d) {
+						 return d.key.trim();
+					 })
+					 .attr("x",145)
+					 .attr("y",function(d,i){
+						 return 20+barHeight*(i+2/3);
+					 })
+					 .attr("font-size", "12px")
+			     .attr("fill", "black")
+					 .style("text-anchor","end");
 			}
 
 			function filter_csv(csvdata,year){
