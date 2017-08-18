@@ -4,9 +4,13 @@
   Basic map shows the number of records in all those years, once you click the year button or move your mouse over the state, the records will be filtered to certain year or state.  
 ### Design
   This project is aimed at showing the trend of online lending platform usage, which varies with regions and time.  
-  Map is a straight way to present regions and time is aggregated by year and they are finally combined as an interactive map.   
+  Map is a straight way to present regions and time is aggregated by year and they are finally combined as an interactive map.  
+  Each state on the map can be accessed by moving the mouse. When the mouse moves over it, the number of records will be filtered to this state.   
+  Each year the button can be clicked and then the records will be filtered to this year.  
+  The darker of the color, the more of the records.   
+  The bar chart shows the number of records in each category, the longer the bar, the more of the records.
   From the map, we can see more and more people make loans on Prosper as the year increases except 2009 in which Prosper shut down for almost one year.   
-  According to the feedbacks, I highlighted the border of state with the mouse over and added a white background for the text. As for the category, I plotted a bar chart beside the map in order to show the loan use.    
+  According to the feedbacks, I highlighted the border of state with the mouse over and added a white background for the text. As for the category, I plotted a bar chart beside the map in order to show the loan use.     
 ### Feedback
   1. Border of each state is not obvious since the map is gradient color of blue.
   2. Text of each state is not clear especially in dark blue background.
